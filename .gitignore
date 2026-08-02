@@ -1,0 +1,32 @@
+# Environment variables & keys
+.env
+*.env
+
+# Python virtual environment
+.venv/
+venv/
+ENV/
+env/
+
+# Byte-compiled / optimized files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Logs & temporary outputs
+logs/
+output/
+*.log
+
+# Cloned target repositories workspace
+workspace/
+
+# IDE & OS settings
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Interview preparation docs
+INTERVIEW_GUIDE.md
+
