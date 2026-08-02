@@ -28,6 +28,7 @@ class ExecutionPlan:
 
 @dataclass
 class EditResult:
+    """Result of attempting to apply an LLM-generated code edit to a file."""
     file_path: str
     changed: bool
     error: str | None = None
@@ -35,6 +36,8 @@ class EditResult:
 
 @dataclass
 class VerificationResult:
+    """Result of running verification steps (tests/builds) on the codebase."""
     success: bool
     attempts: int
     log_excerpt: str
+

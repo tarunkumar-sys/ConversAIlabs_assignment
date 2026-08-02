@@ -15,6 +15,7 @@ logger = get_logger("summary")
 
 
 def _format_files_modified(results: list[EditResult]) -> str:
+    """Formats a list of edit results into markdown bullet points."""
     lines = []
     for r in results:
         status = "modified" if r.changed else ("unchanged" if not r.error else f"ERROR: {r.error}")
@@ -23,6 +24,7 @@ def _format_files_modified(results: list[EditResult]) -> str:
 
 
 def _format_verification(result: VerificationResult) -> str:
+    """Formats verification status and execution log snippet into markdown."""
     status = "PASSED" if result.success else "FAILED"
     return (
         f"Status: {status} (after {result.attempts} attempt(s))\n\n"
@@ -39,8 +41,10 @@ def generate_summary(
     verification_result: VerificationResult,
     llm: LLMClient,
 ) -> str:
+    """Generates the final engineering summary markdown report and writes it to output/SUMMARY.md."""
     logger.info("Generating final summary")
 
+    # Format the prompt using previous stage outputs
     prompt = SUMMARY_PROMPT_TEMPLATE.format(
         repo_url=repo_url,
         user_task=user_task,
@@ -50,10 +54,13 @@ def generate_summary(
         verification_result=_format_verification(verification_result),
     )
 
+    # Query LLM for markdown summary structured like a pull request description
     summary_md = llm.complete(system=SUMMARY_SYSTEM, prompt=prompt)
 
+    # Persist summary file
     output_path = config.OUTPUT_DIR / config.SUMMARY_FILENAME
     output_path.write_text(summary_md)
     logger.info(f"Summary written to {output_path}")
 
     return summary_md
+

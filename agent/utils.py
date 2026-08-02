@@ -15,6 +15,7 @@ import config
 
 @dataclass
 class CommandResult:
+    """Dataclass encapsulating standard command execution output."""
     command: list[str]
     returncode: int
     stdout: str
@@ -22,14 +23,17 @@ class CommandResult:
 
     @property
     def ok(self) -> bool:
+        """Returns True if the command executed with exit code 0."""
         return self.returncode == 0
 
 
 def get_logger(name: str = "agent") -> logging.Logger:
+    """Returns a named logger instance for the agent."""
     return logging.getLogger(name)
 
 
 def configure_logging(verbose: bool = False) -> None:
+    """Configures root logger with file and console handlers."""
     level = logging.DEBUG if verbose else logging.INFO
     formatter = logging.Formatter("%(asctime)s [%(name)s] %(levelname)s: %(message)s")
 
@@ -39,11 +43,13 @@ def configure_logging(verbose: bool = False) -> None:
     for h in root.handlers[:]:
         root.removeHandler(h)
 
+    # Log to file in LOGS_DIR
     fh = logging.FileHandler(config.LOGS_DIR / "agent.log", mode="a", encoding="utf-8")
     fh.setFormatter(formatter)
     fh.setLevel(level)
     root.addHandler(fh)
 
+    # Log to console stdout/stderr
     ch = logging.StreamHandler()
     ch.setFormatter(formatter)
     ch.setLevel(logging.DEBUG if verbose else logging.WARNING)
@@ -51,6 +57,7 @@ def configure_logging(verbose: bool = False) -> None:
 
 
 def run_command(cmd: list[str], cwd: Path, timeout: int | None = None) -> CommandResult:
+    """Executes a shell command synchronously with a specified working directory and timeout."""
     timeout = timeout or config.COMMAND_TIMEOUT_SECONDS
     logger = get_logger("command")
     logger.debug(f"Running command in {cwd}: {' '.join(cmd)}")
@@ -89,6 +96,7 @@ def run_command(cmd: list[str], cwd: Path, timeout: int | None = None) -> Comman
 
 
 def strip_code_fence(text: str) -> str:
+    """Strips markdown ``` code block fences from LLM text output."""
     stripped = text.strip()
     if stripped.startswith("```"):
         lines = stripped.splitlines()
@@ -100,9 +108,7 @@ def strip_code_fence(text: str) -> str:
 
 
 class LLMClient:
-    """
-    Wrapper around LangChain ChatGoogleGenerativeAI / ChatOpenAI.
-    """
+    """Wrapper around LangChain ChatGoogleGenerativeAI / ChatOpenAI for agent LLM queries."""
 
     def __init__(self) -> None:
         if config.LLM_PROVIDER == "gemini":
@@ -133,6 +139,7 @@ class LLMClient:
         self.total_tokens = 0
 
     def complete(self, system: str, prompt: str, max_tokens: int | None = None) -> str:
+        """Sends system and prompt messages to LLM and tracks token usage."""
         messages = [
             SystemMessage(content=system),
             HumanMessage(content=prompt),
@@ -151,3 +158,4 @@ class LLMClient:
             self.total_tokens += usage["total_tokens"]
 
         return str(response.content) or ""
+

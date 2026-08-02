@@ -48,7 +48,7 @@ def clone_repo(repo_url: str, dest_name: str | None = None, force_reclone: bool 
 
 
 def scan_tree(repo_path: Path, max_entries: int = 400) -> str:
-    """Return a text directory tree, skipping ignored dirs/files."""
+    """Returns a text directory tree representation, skipping ignored directories and files."""
     lines: list[str] = []
 
     def walk(dir_path: Path, prefix: str = ""):
@@ -77,6 +77,7 @@ def scan_tree(repo_path: Path, max_entries: int = 400) -> str:
 
 
 def _is_probably_source_file(path: Path) -> bool:
+    """Checks if a file extension matches common source code or configuration files."""
     return path.suffix.lower() in {
         ".py", ".js", ".ts", ".jsx", ".tsx", ".java", ".go", ".rb", ".php",
         ".ejs", ".html", ".json", ".md", ".yml", ".yaml", ".toml", ".cfg",
@@ -84,20 +85,23 @@ def _is_probably_source_file(path: Path) -> bool:
 
 
 def collect_project_context(repo_path: Path) -> ProjectContext:
-    """
-    Curate a bounded set of high-value files:
+    """Curates a bounded set of high-value files as initial context for LLM analysis.
+
+    Collects:
     - package.json / requirements.txt / etc. (project manifests)
-    - README
-    - anything under a directory that looks like models/controllers/routes/views
-    - a general fallback sample of other source files, up to the file cap
+    - README files
+    - key application files (models, controllers, routes, schemas)
+    - source file samples capped by MAX_FILES_TO_SUMMARIZE
     """
     logger.info(f"Collecting project context from {repo_path}")
 
+    # Generate repository tree representation
     file_tree = scan_tree(repo_path)
 
     interesting_dir_hints = {"model", "controller", "route", "view", "schema", "api", "src"}
     snippets: dict[str, str] = {}
 
+    # List all non-ignored files in the target repository
     all_files = [
         p for p in repo_path.rglob("*")
         if p.is_file()
@@ -105,6 +109,7 @@ def collect_project_context(repo_path: Path) -> ProjectContext:
         and p.suffix.lower() not in config.IGNORE_FILE_EXTENSIONS
     ]
 
+    # Prioritize key files: manifests (0), architecture files (1), source files (2), other (3)
     def priority(p: Path) -> int:
         if p.name in config.HIGH_VALUE_FILENAMES:
             return 0
@@ -116,6 +121,7 @@ def collect_project_context(repo_path: Path) -> ProjectContext:
 
     all_files.sort(key=priority)
 
+    # Read top prioritized file snippets up to configured limits
     for p in all_files[: config.MAX_FILES_TO_SUMMARIZE]:
         try:
             content = p.read_text(errors="ignore")
@@ -126,6 +132,7 @@ def collect_project_context(repo_path: Path) -> ProjectContext:
             content = content[: config.MAX_FILE_BYTES_FOR_CONTEXT] + "\n... (truncated)"
         snippets[str(p.relative_to(repo_path))] = content
 
+    # Detect package manager / build tool
     package_manager = None
     if (repo_path / "package.json").exists():
         package_manager = "npm"
@@ -144,3 +151,4 @@ def collect_project_context(repo_path: Path) -> ProjectContext:
         file_snippets=snippets,
         detected_package_manager=package_manager,
     )
+

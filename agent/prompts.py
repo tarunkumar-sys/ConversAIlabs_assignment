@@ -3,6 +3,8 @@ All LLM prompt templates in one place, so tone and output-format
 requirements stay consistent and easy to tune.
 """
 
+# --- Explorer / Analyzer Prompts ---
+
 EXPLORER_SYSTEM = """You are a senior software architect doing a fast onboarding \
 read of an unfamiliar codebase. You are precise, concise, and never invent \
 details that aren't visible in what you were given."""
@@ -41,6 +43,8 @@ Important files:
 Notes:
 """
 
+# --- Planner Prompts ---
+
 PLANNER_SYSTEM = """You are a senior product engineer scoping the smallest useful \
 change that satisfies a user's request. You favor small, safe, shippable diffs \
 over ambitious rewrites."""
@@ -68,6 +72,8 @@ Steps:
 3.
 Risk:
 """
+
+# --- Editor & Fix Prompts ---
 
 EDITOR_SYSTEM = """You are modifying a single file inside an existing project. \
 You preserve the existing coding style, indentation, and conventions. You do \
@@ -113,6 +119,8 @@ unrelated changes. Return the COMPLETE corrected file contents only. No \
 explanations, no code fences.
 """
 
+# --- Summarizer Prompts ---
+
 SUMMARY_SYSTEM = """You are writing a concise engineering summary for a pull \
 request description. You are factual and specific, referencing real file paths \
 and the actual steps taken."""
@@ -148,3 +156,4 @@ interpretation (e.g. which specific feature was chosen among several
 reasonable options, and why), plus any assumptions about the runtime/tooling
 used for verification.
 """
+

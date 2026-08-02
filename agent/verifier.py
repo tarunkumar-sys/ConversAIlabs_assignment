@@ -27,6 +27,7 @@ SERVER_START_GRACE_SECONDS = 15
 
 
 def _npm_scripts(repo_path: Path) -> dict:
+    """Reads scripts dictionary from package.json if present."""
     pkg = repo_path / "package.json"
     if not pkg.exists():
         return {}
@@ -37,6 +38,7 @@ def _npm_scripts(repo_path: Path) -> dict:
 
 
 def _run_node_project(repo_path: Path) -> tuple[bool, str]:
+    """Runs npm install, build, test, and start verification steps for Node.js projects."""
     install = run_command(["npm", "install"], cwd=repo_path)
     if not install.ok:
         return False, f"$ npm install\n{install.stdout}\n{install.stderr}"
@@ -45,6 +47,7 @@ def _run_node_project(repo_path: Path) -> tuple[bool, str]:
     log_parts = [f"$ npm install\n{install.stdout[-500:]}"]
     ran_a_check = False
 
+    # Execute build script if defined
     if "build" in scripts:
         build = run_command(["npm", "run", "build"], cwd=repo_path)
         log_parts.append(f"$ npm run build\n{build.stdout}\n{build.stderr}")
@@ -52,6 +55,7 @@ def _run_node_project(repo_path: Path) -> tuple[bool, str]:
             return False, "\n".join(log_parts)
         ran_a_check = True
 
+    # Execute test script if defined
     if "test" in scripts:
         test = run_command(["npm", "test"], cwd=repo_path)
         test_out = f"{test.stdout}\n{test.stderr}"
@@ -63,6 +67,7 @@ def _run_node_project(repo_path: Path) -> tuple[bool, str]:
             log_parts.append(f"$ npm test\n{test_out}")
             ran_a_check = True
 
+    # Execute start script with grace period handling for long-running servers
     if "start" in scripts:
         try:
             result = run_command(
@@ -89,6 +94,7 @@ def _run_node_project(repo_path: Path) -> tuple[bool, str]:
 
 
 def _run_python_project(repo_path: Path) -> tuple[bool, str]:
+    """Runs pip install and python syntax compilation for Python projects."""
     install = run_command(["pip", "install", "-r", "requirements.txt", "--quiet"], cwd=repo_path)
     if not install.ok:
         return False, f"$ pip install -r requirements.txt\n{install.stdout}\n{install.stderr}"
@@ -101,6 +107,7 @@ def _run_python_project(repo_path: Path) -> tuple[bool, str]:
 
 
 def _guess_offending_file(logs: str, candidate_files: list[str]) -> str | None:
+    """Attempts to identify the file causing build/run failure from error logs."""
     for f in candidate_files:
         if f in logs:
             return f
@@ -109,6 +116,7 @@ def _guess_offending_file(logs: str, candidate_files: list[str]) -> str | None:
 
 
 def verify_and_fix(repo_path: Path, plan: ExecutionPlan, llm: LLMClient) -> VerificationResult:
+    """Runs build/run checks on the codebase and triggers fix loops if errors occur."""
     attempts = 0
     logs = ""
 
@@ -116,6 +124,7 @@ def verify_and_fix(repo_path: Path, plan: ExecutionPlan, llm: LLMClient) -> Veri
         attempts += 1
         logger.info(f"Verification attempt {attempts}")
 
+        # Check project type and run appropriate verification
         if (repo_path / "package.json").exists():
             success, logs = _run_node_project(repo_path)
         elif (repo_path / "requirements.txt").exists() or (repo_path / "pyproject.toml").exists():
@@ -133,6 +142,7 @@ def verify_and_fix(repo_path: Path, plan: ExecutionPlan, llm: LLMClient) -> Veri
         if attempts >= config.MAX_VERIFICATION_RETRIES:
             break
 
+        # Attempt auto-fix for offending file
         offending_file = _guess_offending_file(logs, plan.files_to_modify)
         if not offending_file:
             logger.warning("Could not identify offending file from logs; stopping retry loop")
@@ -141,3 +151,4 @@ def verify_and_fix(repo_path: Path, plan: ExecutionPlan, llm: LLMClient) -> Veri
         apply_fix(repo_path, offending_file, logs, llm)
 
     return VerificationResult(success=False, attempts=attempts, log_excerpt=logs[-3000:])
+
